@@ -9,7 +9,7 @@ calculate()
 
 async function calculate() {
   
-  const blocknumber = process.env.BLOCK_NUMBER || 680000;
+  const blocknumber = process.env.BLOCK_NUMBER || 68000;
 
   try {
     const block_number = parseInt(blocknumber);
@@ -64,7 +64,8 @@ function doProcess(txid_map) {
   });
 
   txid_map.forEach((txid_info, txid) => {
-    const txsize = calcAnscSize(txid, txid_map);
+    calcAnscSize(txid, txid_map);
+    const txsize = txid_map.get(txid).ansc_count;
     if (queue.size() < top_size) {
       queue.enq({tx_size: txsize, tx_id: txid});
     }
@@ -106,7 +107,7 @@ function calcAnscSize(txid, txid_map) {
     txid_info.visited = true;
     txid_info.ansc_count = ansc_count;
 
-    return ansc_count;
+    return ansc_count + 1;
   }
   else {
     return 0;
