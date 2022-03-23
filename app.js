@@ -14,8 +14,9 @@ const axios = require('axios').default;
 */
 
 const url = 'https://blockstream.info/api'
+const block_number = 680000;
 
-calculate(680000)
+calculate(block_number)
 
 async function calculate(blocknumber) {
   try {
@@ -62,7 +63,7 @@ async function calculate(blocknumber) {
 
       txs_data.forEach(function(txid) { 
         // console.log('txid' + txid.txid);
-        const txid_info = {vin_txids: [], ansc_count: 0};
+        const txid_info = {vin_txids: [], ansc_count: 0, visited: false};
         txid_map.set(txid.txid, txid_info)
         txid.vin.forEach(function(vin_txid) {
           // console.log('txid ' + txid.txid +  ', vin_txid ' + vin_txid.txid);
@@ -71,16 +72,57 @@ async function calculate(blocknumber) {
       });
     }
 
-    console.log(txid_map.size);
+    // console.log(txid_map.size);
 
-
+    process(txid_map);
 
   } catch (error) {
-    console.error('Error - ' + error);
+    throw error;
+    // console.error('Error - ' + error);
   }
 }
 
-function loop(txid_map) {
-  
+function process(txid_map) {
+  console.log('process ' + txid_map);
+  const large_txs = [];
+  txid_map.forEach((txid_info, txid) => {
+    if (txid_info.visited) {
+      return;
+    }
+
+    console.log('process 2 ' + txid_map);
+    const txsize = calcAnscSize(txid, txid_map);
+    large_txs.push( {tx_size: txsize, tx_id: txid});
+    large_txs.sort((a, b) => {
+      return b.tx_size - a.tx_size;
+    });
+  })
+
+  for (let i = 0; i < 10; i++) {
+    console.log('txid ' + large_txs[i].tx_id + ', size ' + large_txs[i].tx_size)
+  }
+}
+
+function calcAnscSize(txid, txid_map) {
+  console.log('calcAnscSize ' + txid_map);
+  if (txid_map.has(txid)) {
+    const txid_info = txid_map.get(txid);
+    if (txid_info.visited) {
+      return txid_info.ansc_count;
+    }
+
+    let ansc_count = 0;
+
+    txid_info.vin_txids.forEach((vin_txid) => {
+      ansc_count += (calcAnscSize(vin_txid, txid_map) + 1);
+    });
+
+    txid_info.visited = true;
+
+    return ansc_count;
+  }
+  else {
+    return 0;
+  }
 }
 
