@@ -1,4 +1,5 @@
 const axios = require('axios').default;
+const PriorityQueue = require('priorityqueuejs');
 
 const url = 'https://blockstream.info/api'
 const block_number = 680000;
@@ -14,7 +15,7 @@ async function calculate(blocknumber) {
     process(txid_map);
 
   } catch (error) {
-    console.log('Error while processing for block number ' + blocknumber + ', error: ' + e)
+    console.log('Error while processing for block number ' + blocknumber + ', error: ' + error)
   }
 }
 
@@ -84,18 +85,34 @@ async function getTxs(block_hash, i) {
 }
 
 function process(txid_map) {
-  const large_txs = [];
-  txid_map.forEach((txid_info, txid) => {
-    const txsize = calcAnscSize(txid, txid_map);
-    large_txs.push( {tx_size: txsize, tx_id: txid});
-  })
-
-  large_txs.sort((a, b) => {
+  const queue = new PriorityQueue((a, b) => {
     return b.tx_size - a.tx_size;
   });
 
-  for (let i = 0; i < 10; i++) {
-    console.log(large_txs[i].tx_id + ' ' + large_txs[i].tx_size)
+  txid_map.forEach((txid_info, txid) => {
+    const txsize = calcAnscSize(txid, txid_map);
+    if (queue.size() < 10) {
+      queue.enq({tx_size: txsize, tx_id: txid});
+    }
+    else {
+      if (queue.peek().tx_size < txsize) {
+        queue.deq();
+        queue.enq({tx_size: txsize, tx_id: txid});
+      }
+    }
+  })
+
+  const largest_txs = [];
+  while (!queue.isEmpty()) {
+    largest_txs.push(queue.deq());
+  }
+
+  largest_txs.sort((a, b) => {
+    return b.tx_size - a.tx_size;
+  });
+
+  for (let i = 0; i < largest_txs.length; i++) {
+    console.log(largest_txs[i].tx_id + ' ' + largest_txs[i].tx_size)
   }
 }
 
