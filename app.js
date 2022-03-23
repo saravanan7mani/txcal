@@ -1,53 +1,31 @@
 const axios = require('axios').default;
 const PriorityQueue = require('priorityqueuejs');
 
-const url = 'https://blockstream.info/api'
-const block_number = 680000;
+const {getBlockHash} = require('./block_explorer_service');
+const {getTxCount} = require('./block_explorer_service');
+const {getTxs} = require('./block_explorer_service');
 
-calculate(block_number)
+calculate()
 
-async function calculate(blocknumber) {
+async function calculate() {
+  
+  const blocknumber = process.env.BLOCK_NUMBER || 680000;
+
   try {
-    const block_hash = await getBlockHash(blocknumber);
+    const block_number = parseInt(blocknumber);
+    if (!Number.isSafeInteger(block_number) || block_number < 0) {
+      throw new Error ('Invalid block number ' + block_number)
+    }
+
+    const block_hash = await getBlockHash(block_number);
     const tx_count = await getTxCount(block_hash);
     const txid_map = await populateMap(block_hash, tx_count);
 
-    process(txid_map);
+    doProcess(txid_map);
 
   } catch (error) {
     console.log('Error while processing for block number ' + blocknumber + ', error: ' + error)
   }
-}
-
-async function getBlockHash(blocknumber) {
-  if (!Number.isSafeInteger(blocknumber)) {
-    throw new Error ('Invalid block number ' + blocknumber)
-  }
-  const block_height_response = await axios.get(url + '/block-height/' + blocknumber);
-
-  if (block_height_response.status !== 200) {
-    throw new Error ('Invalid http status code for get block hash request ' + block_height_response.status)
-  }
-
-  if (block_height_response.data == null) {
-    throw new Error ('Invalid response from get block hash request for block number ' + blocknumber)
-  }
-
-  return block_height_response.data;
-}
-
-async function getTxCount(block_hash) {
-  const block_response = await axios.get(url + '/block/' + block_hash);
-
-  if (block_response.status !== 200) {
-    throw new Error ('Invalid http status code for get tx count request ' + block_response.status)
-  }
-
-  if (block_response.data == null || block_response.data.tx_count == null) {
-    throw new Error ('Invalid response from get tx count request for block hash ' + block_hash)
-  }
-
-  return block_response.data.tx_count
 }
 
 async function populateMap(block_hash, tx_count) {
@@ -59,10 +37,6 @@ async function populateMap(block_hash, tx_count) {
     const txs_data = await getTxs(block_hash, i);
     
     txs_data.forEach(function(txid) { 
-      if (txid.txid === 'dacfabc4806537828b243eb9aee20a467018b35ce4a0a2d83bd6c7c1cf940f23') {
-        txid.txid = txid.txid;
-        console.log(txid.vin.length);
-      }
       const vin_txid_set = new Set();
 
       const txid_info = {vin_txids: [], ansc_count: 0, visited: false};
@@ -77,31 +51,21 @@ async function populateMap(block_hash, tx_count) {
   return txid_map;
 }
 
-async function getTxs(block_hash, i) {
-  const txs_response = await axios.get(url + '/block/' + block_hash + '/txs/' + i * 25);
+function doProcess(txid_map) {
+  const topsize = process.env.TOP_SIZE || 10;
 
-  if (txs_response.status !== 200) {
-    throw new Error ('Invalid http status code for get txs request ' + txs_response.status)
+  const top_size = parseInt(topsize);
+  if (!Number.isSafeInteger(top_size) || top_size <= 0) {
+    throw new Error ('Invalid top size ' + top_size)
   }
 
-  if (txs_response.data == null) {
-    throw new Error ('Invalid response from get txs request for block hash ' + block_hash + ', start_index ' + i)
-  }
-
-  return txs_response.data;
-}
-
-function process(txid_map) {
   const queue = new PriorityQueue((a, b) => {
     return b.tx_size - a.tx_size;
   });
 
   txid_map.forEach((txid_info, txid) => {
-    if (txid === 'dacfabc4806537828b243eb9aee20a467018b35ce4a0a2d83bd6c7c1cf940f23') {
-      txid = txid;
-    }
     const txsize = calcAnscSize(txid, txid_map);
-    if (queue.size() < 10) {
+    if (queue.size() < top_size) {
       queue.enq({tx_size: txsize, tx_id: txid});
     }
     else {
