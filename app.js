@@ -7,7 +7,6 @@ calculate(block_number)
 
 async function calculate(blocknumber) {
   try {
-    console.log('')
     const block_hash = await getBlockHash(blocknumber);
     const tx_count = await getTxCount(block_hash);
     const txid_map = await populateMap(block_hash, tx_count);
@@ -70,7 +69,7 @@ async function populateMap(block_hash, tx_count) {
   return txid_map;
 }
 
-async function  getTxs(block_hash, i) {
+async function getTxs(block_hash, i) {
   const txs_response = await axios.get(url + '/block/' + block_hash + '/txs/' + i * 25);
 
   if (txs_response.status !== 200) {
@@ -87,10 +86,6 @@ async function  getTxs(block_hash, i) {
 function process(txid_map) {
   const large_txs = [];
   txid_map.forEach((txid_info, txid) => {
-    if (txid_info.visited) {
-      return;
-    }
-
     const txsize = calcAnscSize(txid, txid_map);
     large_txs.push( {tx_size: txsize, tx_id: txid});
   })
@@ -118,6 +113,7 @@ function calcAnscSize(txid, txid_map) {
     });
 
     txid_info.visited = true;
+    txid_info.ansc_count = ansc_count;
 
     return ansc_count;
   }
