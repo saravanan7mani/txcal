@@ -57,13 +57,20 @@ async function populateMap(block_hash, tx_count) {
 
   for (let i = 0; i < loop_count; i++) {
     const txs_data = await getTxs(block_hash, i);
-
+    
     txs_data.forEach(function(txid) { 
+      if (txid.txid === 'dacfabc4806537828b243eb9aee20a467018b35ce4a0a2d83bd6c7c1cf940f23') {
+        txid.txid = txid.txid;
+        console.log(txid.vin.length);
+      }
+      const vin_txid_set = new Set();
+
       const txid_info = {vin_txids: [], ansc_count: 0, visited: false};
       txid_map.set(txid.txid, txid_info)
       txid.vin.forEach(function(vin_txid) {
-        txid_info.vin_txids.push(vin_txid.txid);
+        vin_txid_set.add(vin_txid.txid);
       });
+      txid_info.vin_txids = [...vin_txid_set];
     });
   }
 
@@ -90,6 +97,9 @@ function process(txid_map) {
   });
 
   txid_map.forEach((txid_info, txid) => {
+    if (txid === 'dacfabc4806537828b243eb9aee20a467018b35ce4a0a2d83bd6c7c1cf940f23') {
+      txid = txid;
+    }
     const txsize = calcAnscSize(txid, txid_map);
     if (queue.size() < 10) {
       queue.enq({tx_size: txsize, tx_id: txid});
@@ -120,13 +130,13 @@ function calcAnscSize(txid, txid_map) {
   if (txid_map.has(txid)) {
     const txid_info = txid_map.get(txid);
     if (txid_info.visited) {
-      return txid_info.ansc_count;
+      return txid_info.ansc_count + 1;
     }
 
     let ansc_count = 0;
 
     txid_info.vin_txids.forEach((vin_txid) => {
-      ansc_count += (calcAnscSize(vin_txid, txid_map) + 1);
+      ansc_count += (calcAnscSize(vin_txid, txid_map));
     });
 
     txid_info.visited = true;
