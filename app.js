@@ -15,12 +15,72 @@ const axios = require('axios').default;
 
 const url = 'https://blockstream.info/api'
 
+calculate(680000)
+
 async function calculate(blocknumber) {
   try {
-    const response = await axios.get(url + '/block-height' + blocknumber);
-    console.log(response);
+    const block_height_response = await axios.get(url + '/block-height/' + blocknumber);
+
+    if (block_height_response.status !== 200) {
+      throw new Error ('Invalid http status code ' + block_height_response.status)
+    }
+
+    if (block_height_response.data == null) {
+      throw new Error ('Invalid input block number code ' + blocknumber)
+    }
+
+    const block_hash = block_height_response.data;
+
+    const block_response = await axios.get(url + '/block/' + block_hash);
+
+    if (block_response.status !== 200) {
+      throw new Error ('Invalid http status code ' + block_response.status)
+    }
+
+    if (block_response.data == null || block_response.data.tx_count == null) {
+      throw new Error ('Invalid block hash ' + block_response)
+    }
+
+    const tx_count = block_response.data.tx_count
+    
+    const loop_count = ~~(tx_count / 25) + (tx_count % 25) ? 1 : 0;
+
+    const txid_map = new Map();
+
+    for (let i = 0; i < loop_count; i++) {
+      const txs_response = await axios.get(url + '/block/' + block_hash + '/txs/' + i * 25);
+
+      if (txs_response.status !== 200) {
+        throw new Error ('Invalid http status code ' + txs_response.status)
+      }
+
+      if (txs_response.data == null) {
+        throw new Error ('Invalid txs response for ' + txs_response)
+      }
+
+      const txs_data = txs_response.data;
+
+      txs_data.forEach(function(txid) { 
+        // console.log('txid' + txid.txid);
+        const txid_info = {vin_txids: [], ansc_count: 0};
+        txid_map.set(txid.txid, txid_info)
+        txid.vin.forEach(function(vin_txid) {
+          // console.log('txid ' + txid.txid +  ', vin_txid ' + vin_txid.txid);
+          txid_info.vin_txids.push(vin_txid.txid);
+        });
+      });
+    }
+
+    console.log(txid_map.size);
+
+
+
   } catch (error) {
-    console.error(error);
+    console.error('Error - ' + error);
   }
+}
+
+function loop(txid_map) {
+  
 }
 
