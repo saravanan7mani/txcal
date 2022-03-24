@@ -4,7 +4,7 @@ const {getBlockHash} = require('./block_explorer_service');
 const {getTxCount} = require('./block_explorer_service');
 const {getTxs} = require('./block_explorer_service');
 
-const RATE_LIMIT = 100;
+const RATE_LIMIT = 50;
 
 calculate()
 
@@ -91,11 +91,7 @@ function doProcess(txid_map) {
     largest_txs.push(queue.deq());
   }
 
-  largest_txs.sort((a, b) => {
-    return b.tx_size - a.tx_size;
-  });
-
-  for (let i = 0; i < largest_txs.length; i++) {
+  for (let i = largest_txs.length-1; i >= 0; i--) {
     console.log(largest_txs[i].tx_id + ' ' + largest_txs[i].tx_size)
   }
 }
