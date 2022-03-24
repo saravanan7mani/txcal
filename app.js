@@ -1,4 +1,3 @@
-const axios = require('axios').default;
 const PriorityQueue = require('priorityqueuejs');
 
 const {getBlockHash} = require('./block_explorer_service');
@@ -11,7 +10,7 @@ calculate()
 
 async function calculate() {
   
-  const blocknumber = process.env.BLOCK_NUMBER || 68000;
+  const blocknumber = process.env.BLOCK_NUMBER || 680000;
 
   try {
     const block_number = parseInt(blocknumber);
